@@ -1,0 +1,175 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+bank = read.csv("bank-additional.csv", sep=";")
+```
+
+```{r}
+# Remove bad variables
+drop<-c("duration", "emp.var.rate", "loan", "default", "education")
+bank<-bank[,!names(bank)%in%drop]
+```
+
+```{r}
+# factor y
+bank$yfac = as.factor(bank$y)
+
+# numeric y
+bank$ynum = ifelse(bank$y == "yes", 1, 0)
+```
+
+```{r}
+# split data 99.99-1
+set.seed(1335)
+nr <- nrow(bank)
+index <- sample(1:nr, size=ceiling(length(bank$y)/(100/99.99)),replace=FALSE)
+bank.train <- bank[index,]
+bank.pred <- bank[-index,]
+```
+
+```{r}
+# Model
+logitmodel<-glm(as.factor(y) ~ (.),
+                data=bank.train, family = binomial("logit"), 
+                control = list(maxit = 50))
+```
+
+
+
+Average of Confidence Interval 
+```{r}
+library(parallel)
+cl = makeCluster(4)
+B = 10
+
+singleBoots<-function(i){
+  # preprocessing
+  drop<-c("duration", "emp.var.rate", "loan", "default", "education")
+  bank<-bank[,!names(bank)%in%drop]
+  # factor y
+  bank$yfac = as.factor(bank$y)
+  # numeric y
+  bank$ynum = ifelse(bank$y == "yes", 1, 0)
+  index <- sample(x = seq_len(n), size = n, replace = TRUE)
+  bank.train <- bank[index,]
+  # parameter estimation
+  calc_ci(bank.train)
+}
+clusterEvalQ(cl, {
+  library(tidyverse)
+  library(scales)
+  alpha = 0.05
+  n = 1e3
+  bank = read.csv("bank-additional.csv", sep=";")
+  
+  calc_ci<-function(bank){
+    logitmodel<-glm(as.factor(y) ~ (.),
+                  data=bank, family = binomial("logit"), 
+                  control = list(maxit = 50))
+    gbenf = length(summary(logitmodel)$coefficients[,1]) # g value
+    res = benfmult = qt(1-alpha/gbenf, nrow(bank)-(gbenf-1))
+    resList = summary(logitmodel)$coefficients %>%
+    as.data.frame() %>%
+    select(Estimate, Std.Error = "Std. Error") %>%
+    rownames_to_column("Variable") %>%
+    mutate(CI.Lwr = Estimate - Std.Error*benfmult,
+           CI.Upr = Estimate + Std.Error*benfmult) %>%
+    mutate(Is.Zero = 0  > CI.Lwr & 0 < CI.Upr)%>% as.data.frame()
+    data.frame(lower=resList$CI.Lwr , upper=resList$CI.Upr)
+  }
+})
+cis = parSapply(cl, seq_len(B),singleBoots)
+stopCluster(cl)
+```
+
+result
+```{r}
+cis
+```
+Find beta and then ci
+```{r}
+library(parallel)
+cl = makeCluster(4)
+B = 10
+
+singleBoots<-function(i){
+  # preprocessing
+  drop<-c("duration", "emp.var.rate", "loan", "default", "education")
+  bank<-bank[,!names(bank)%in%drop]
+  # factor y
+  bank$yfac = as.factor(bank$y)
+  # numeric y
+  bank$ynum = ifelse(bank$y == "yes", 1, 0)
+  index <- sample(x = seq_len(n), size = n, replace = TRUE)
+  bank.train <- bank[index,]
+  # parameter estimation
+  calc_ci(bank.train)
+}
+clusterEvalQ(cl, {
+  library(tidyverse)
+  library(scales)
+  alpha = 0.05
+  n = 1e3
+  bank = read.csv("bank-additional.csv", sep=";")
+  
+  calc_ci<-function(bank){
+    logitmodel<-glm(as.factor(y) ~ (.),
+                  data=bank, family = binomial("logit"), 
+                  control = list(maxit = 50))
+    gbenf = length(summary(logitmodel)$coefficients[,1]) # g value
+    res = benfmult = qt(1-alpha/gbenf, nrow(bank)-(gbenf-1))
+    summary(logitmodel)$coefficients %>%
+    as.data.frame() %>%
+    select(Estimate)
+  }
+})
+cis = parSapply(cl, seq_len(B),singleBoots)
+stopCluster(cl)
+```
+
+result
+```{r}
+cis[2]
+```
+For one sample only
+```{r}
+# CI family pairwise for beta by Bonferroni
+# https://stats.stackexchange.com/questions/354098/calculating-confidence-intervals-for-a-logistic-regression/354660
+
+# logitmodel; # user input
+alpha = 0.05 # user input
+
+gbenf = length(summary(logitmodel)$coefficients[,1]) # g value
+benfmult = qt(1-alpha/gbenf, nrow(bank)-(gbenf-1)) # bonf multiplier
+
+library(scales)
+
+summary(logitmodel)$coefficients %>%
+  as.data.frame() %>%
+  select(Estimate) %>%
+  rownames_to_column("Variable") %>%
+  mutate(CI.Lwr = Estimate - Std.Error*benfmult,
+         CI.Upr = Estimate + Std.Error*benfmult) %>%
+  mutate(Is.Zero = 0  > CI.Lwr & 0 < CI.Upr) 
+```
+
+```{r}
+# prediction interval
+# https://stackoverflow.com/questions/14423325/confidence-intervals-for-predictions-from-logistic-regression
+
+pred <- predict(logitmodel, newdata=bank.pred, type = "response", se.fit = TRUE)
+
+fit = pred$fit
+upr = pred$fit + 1.96 * pred$se.fit
+lwr = pred$fit - 1.96 * pred$se.fit
+
+as.data.frame(cbind(fit, lwr, upr))
+```
+
