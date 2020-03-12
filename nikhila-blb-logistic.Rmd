@@ -1,0 +1,142 @@
+---
+title: "nikhila-logit-bootstrap"
+author: "Nikhila Thota"
+date: "March 11, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#' @import purrr
+#' @import stats
+#' @importFrom magrittr %>%
+#' @details
+# Logistic Regression with Little Bag of Bootstraps
+"_PACKAGE"
+
+#' @export
+blbglm <- function(formula, data, m = 3, B = 20, parallel = TRUE) {
+  data_list <- split_data(data, m)
+  estimates <- map(
+    data_list,
+    ~ glm_each_subsample(formula = formula, data = ., n = nrow(data), B = B)
+  )
+  res <- list(estimates = estimates, formula = formula)
+  class(res) <- "blbglm"
+  invisible(res)
+}
+
+
+#' split data into m parts of approximated equal sizes
+split_data <- function(data, m) {
+  indx <- sample.int(m, nrow(data), replace = TRUE)
+  data %>% split(indx)
+}
+
+
+#' compute the estimates
+glm_each_subsample <- function(formula, data, n, B) {
+  replicate(B, glm_each_boot(formula, data, n), simplify = FALSE)
+}
+
+
+#' compute the regression estimates for a blb dataset
+glm_each_boot <- function(formula, data, n) {
+  freqs <- rmultinom(1, n, rep(1, nrow(data)))
+  glm1(formula, data, freqs)
+}
+
+
+#' estimate the regression estimates based on given number of repetitions
+glm1 <- function(formula, data, freqs) {
+  # drop the original closure of formula,
+  # otherwise the formula will pick wrong variables from a parent scope.
+  environment(formula) <- environment()
+  fit <- glm(formula, data, weights = freqs, family = binomial("logit"), control = list(maxit = 50))
+  list(coef = blbcoef(fit), sigma = blbsigma(fit, freqs), se = blbse(fit, freqs))
+}
+
+
+#' compute the coefficients from fit
+blbcoef <- function(fit, freqs) {
+  fit$coefficients
+}
+
+#' compute SE from fit
+blbse <- function(fit, freqs) {
+  se <- summary(fit)$coefficients[, 2]
+}
+
+
+#' compute sigma from fit
+blbsigma <- function(fit, freqs) {
+  p <- fit$rank
+  y <- model.extract(fit$model, "ynum")
+  e <- fitted(fit) - y
+  # YOUR CODE to compute sigma
+}
+
+
+#' @export
+#' @method print blblm
+print.blbglm <- function(x, ...) {
+  cat("blblm model")
+}
+
+
+#' @export
+#' @method sigma blblm
+sigma.blbglm <- function(object, confidence = FALSE, level = 0.95, ...) {
+  est <- object$estimates
+  # YOUR CODE to compute sigma and its c.i.
+}
+
+#' @export
+#' @method coef blblm
+coef.blblm <- function(object, ...) {
+  est <- object$estimates
+  # YOUR CODE to compute the coefficients.
+}
+
+
+#' @export
+#' @method confint blblm
+confint.blblm <- function(object, parm = NULL, level = 0.95, ...) {
+  if (is.null(parm)) {
+    parm <- attr(terms(fit$formula), "term.labels")
+  }
+  # YOUR CODE to compute the confidence intervals
+}
+
+#' @export
+#' @method predict blblm
+predict.blblm <- function(object, newdata, confidence = FALSE, level = 0.95, ...) {
+  est <- object$estimates
+  X <- model.matrix(reformulate(attr(terms(object$formula), "term.labels")), newdata)
+  if (confidence) {
+    # YOUR CODE to compute the predictions and their confidence intervals
+  } else {
+    # YOUR CODE to compute the predictions
+  }
+}
+
+
+
+```
+
+```{r, warning=FALSE}
+bank = read.csv("bank-additional.csv", sep=";")
+# Remove bad variables
+drop<-c("duration", "emp.var.rate", "loan", "default", "education")
+bank<-bank[,!names(bank)%in%drop]
+#bank$y = as.factor(bank$y)
+# numeric y
+bank$ynum = ifelse(bank$y == "yes", 1, 0)
+
+
+bank_fit <- blbglm(y ~ (.), data=bank)
+bank_fit
+```

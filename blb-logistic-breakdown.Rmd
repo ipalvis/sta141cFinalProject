@@ -1,0 +1,46 @@
+---
+title: "blb-logistic-breakdown"
+author: "Nikhila Thota"
+date: "March 11, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+bank = read.csv("bank-additional.csv", sep=";")
+# Remove bad variables
+drop<-c("duration", "emp.var.rate", "loan", "default", "education")
+bank<-bank[,!names(bank)%in%drop]
+#bank$y = as.factor(bank$y)
+# numeric y
+bank$ynum = ifelse(bank$y == "yes", 1, 0)
+
+```
+
+```{r}
+
+freqs <- rmultinom(1, nrow(bank), rep(1, nrow(bank)))
+
+
+glm1 <- function(formula, data, freqs) {
+  # drop the original closure of formula,
+  # otherwise the formula will pick wrong variables from a parent scope.
+  #environment(formula) <- environment()
+  fit <- glm(formula, data, weights = freqs, family = binomial("logit"), control = list(maxit = 50))
+  #list(coef = blbcoef(fit), sigma = blbsigma(fit, freqs))
+}
+
+
+
+```
+
+```{r}
+
+bank_fit <- glm1(y ~ (.), data= bank, freqs = )
+
+summary(bank_fit)
+
+```
