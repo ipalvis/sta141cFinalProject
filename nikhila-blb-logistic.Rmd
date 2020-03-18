@@ -7,9 +7,11 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
 ```
 
 ```{r}
+#' @import tidyverse
 #' @import purrr
 #' @import stats
 #' @importFrom magrittr %>%
@@ -18,12 +20,12 @@ knitr::opts_chunk$set(echo = TRUE)
 "_PACKAGE"
 
 #' @export
-blbglm <- function(formula, data, m = 3, B = 20, parallel = TRUE) {
+blbglm <- function(formula, data, m = 2, B = 10, parallel = FALSE) {
   data_list <- split_data(data, m)
   estimates <- map(
     data_list,
     ~ glm_each_subsample(formula = formula, data = ., n = nrow(data), B = B)
-  )
+  ) 
   res <- list(estimates = estimates, formula = formula)
   class(res) <- "blbglm"
   invisible(res)
@@ -39,14 +41,24 @@ split_data <- function(data, m) {
 
 #' compute the estimates
 glm_each_subsample <- function(formula, data, n, B) {
-  replicate(B, glm_each_boot(formula, data, n), simplify = FALSE)
+  each_sub <- replicate(B, glm_each_boot(formula, data, n), simplify = FALSE)
+  #print(each_sub)
+  #sum_coef <- each_sub %>% reduce(`+`, .$coef)
+  as.data.frame(each_sub)
+  sub_sum_coef <- each_sub[[1]]$coef + each_sub[[2]]$coef
+  sub_sum_coef <- sum(each_sub)
+  print(sub_sum_coef)
+  sub_mean_coef <- sub_sum_coef/B
+  #sub_mean_se <- sum_sub$se/B
+  list(coef = sub_mean_coef)
 }
 
 
 #' compute the regression estimates for a blb dataset
 glm_each_boot <- function(formula, data, n) {
   freqs <- rmultinom(1, n, rep(1, nrow(data)))
-  glm1(formula, data, freqs)
+  #glm1(formula, data, freqs)
+  boot = glm1(formula, data, freqs)
 }
 
 
@@ -56,27 +68,31 @@ glm1 <- function(formula, data, freqs) {
   # otherwise the formula will pick wrong variables from a parent scope.
   environment(formula) <- environment()
   fit <- glm(formula, data, weights = freqs, family = binomial("logit"), control = list(maxit = 50))
-  list(coef = blbcoef(fit), sigma = blbsigma(fit, freqs), se = blbse(fit, freqs))
+  list(coef = blbcoef(fit), se = blbse(fit))
 }
 
 
 #' compute the coefficients from fit
 blbcoef <- function(fit, freqs) {
-  fit$coefficients
+  coef <- fit$coefficients
 }
 
 #' compute SE from fit
-blbse <- function(fit, freqs) {
+blbse <- function(fit) {
   se <- summary(fit)$coefficients[, 2]
+
 }
 
 
 #' compute sigma from fit
-blbsigma <- function(fit, freqs) {
+blbsigma <- function(fit) {
   p <- fit$rank
   y <- model.extract(fit$model, "ynum")
   e <- fitted(fit) - y
+  w <- fit$weights
   # YOUR CODE to compute sigma
+
+  sqrt(sum(e^2*w)/(p-1))
 }
 
 
@@ -84,6 +100,7 @@ blbsigma <- function(fit, freqs) {
 #' @method print blblm
 print.blbglm <- function(x, ...) {
   cat("blblm model")
+
 }
 
 
@@ -91,14 +108,43 @@ print.blbglm <- function(x, ...) {
 #' @method sigma blblm
 sigma.blbglm <- function(object, confidence = FALSE, level = 0.95, ...) {
   est <- object$estimates
+  coef_names <- names(est[[1]][[1]]$coef)
+  #print(coef_names)
+  
+  object$estimates[[1]][[1]]$coef
+  
+  
+  #lmap(est[[1]], ~ imap(.y, names(.x), print(.x)), .y = .x)
+  
+  #coef_mean <- function(.i, .) {}
+  
+  #est[[1]] %>% map()
+    
+  
+  #est %>% map(.) %>% pmap(., ~) 
+  
+  #est[[1]] %>% map(., ~map(.x, print))
+  
+  #pmap(est[[1]], ) 
+  
+  #imap(est[[1]], ~imap(., .f=print(.y)))
+  #pmap(est[[1]], mean)
+
+  
+  #est[[1]][[1]]$coef %>% map_dbl(., mean)
+  
+  #est %>% map(map('[', c(""))
   # YOUR CODE to compute sigma and its c.i.
+  #est["sigma"] %>%
+  # map(map(mean(.)))
 }
 
 #' @export
 #' @method coef blblm
 coef.blblm <- function(object, ...) {
   est <- object$estimates
-  # YOUR CODE to compute the coefficients.
+  print(est['coef'])
+  
 }
 
 
@@ -134,9 +180,32 @@ drop<-c("duration", "emp.var.rate", "loan", "default", "education")
 bank<-bank[,!names(bank)%in%drop]
 #bank$y = as.factor(bank$y)
 # numeric y
-bank$ynum = ifelse(bank$y == "yes", 1, 0)
+#bank$ynum = ifelse(bank$y == "yes", 1, 0)
+```
 
-
+```{r}
 bank_fit <- blbglm(y ~ (.), data=bank)
+#est <- bank_fit$estimates
 bank_fit
+```
+
+```{r}
+list <- est[[1]][[1]]
+list$coef/2
+
+```
+
+
+```{r}
+est %>% map(~map(.))
+
+coef_mean <- function(x) {
+  # x is a bootstrap
+  
+  sum(x$coef)
+  
+}
+
+
+
 ```

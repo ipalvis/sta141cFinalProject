@@ -67,7 +67,7 @@ blbsigma <- function(fit) {
   e <- fitted(fit) - y
   w <- fit$weights
   # YOUR CODE to compute sigma
-  sqrt(sum(e^2*w)/(p-1))
+  
 }
 
 
