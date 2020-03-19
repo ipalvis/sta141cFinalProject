@@ -200,8 +200,9 @@ list$coef/2
 
 ```{r}
 coeff_list = data %>% map(function(x){map(x,function(a){a[[1]]})})
-res = coeff_list %>% map(function(x){as.data.frame(matrix(unlist(x), nrow=length(unlist(x[[1]]))))})
-res %>% map(function(x){rowQuantile})
+res = coeff_list %>% map(function(x){as.matrix(matrix(unlist(x), nrow=length(unlist(x[[1]]))))})
+ci_list = res %>% map(function(x){apply(x, 1, quantile, c(0.25, 0.75))})
+Reduce("+", ci_list) / length(ci_list)
 ```
 
 ```{r}
