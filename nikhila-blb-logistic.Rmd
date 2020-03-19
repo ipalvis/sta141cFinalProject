@@ -48,7 +48,7 @@ glm_each_subsample <- function(formula, data, n, B) {
   #print(len)
   #print(each_sub[[1:10]])
   
-  #sapply(each_sub, function(x) x$coef)
+  sapply(each_sub, function(x) x$coef)
   
   #print(each_sub[[1:length(each_sub)]])
   #Reduce(each_sub[[1:length(each_sub)]], cbind)
