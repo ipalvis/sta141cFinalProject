@@ -36,10 +36,12 @@ telcom$SELFDRIV = as.numeric(as.character(telcom$SELFDRIV))
 telcom$VEHPERWK = ifelse(str_detect(telcom$VEHPERWK, '-1'), sub('-1', NA, telcom$VEHPERWK), telcom$VEHPERWK)
 telcom$VEHPERWK = as.numeric(as.character(telcom$VEHPERWK))
 # sum(is.na(telcom$VEHPERWK))
+
+telcom = na.omit(telcom)
 ```
 
 ```{r}
 glmfit = glm(C3H17M ~ OVERTIME + EFACT9 + EFACT6 + MANCONST + JOBCONST
                  + TECHCONS + CSO9FT2, 
-                 family = binomial(link= "logit"), data = telcom, na.action = na.omit)
+                 family = binomial(link= "logit"), data = telcom)
 ```
