@@ -4,6 +4,10 @@ output: html_document
 ---
 
 ```{r}
+library("readxl") # read_excel
+```
+
+```{r}
 telcom = read_excel('choice12svar.xlsx', sheet = 1, col_names = TRUE, col_types = NULL, skip = 0)
 ```
 
@@ -35,7 +39,7 @@ telcom$VEHPERWK = as.numeric(as.character(telcom$VEHPERWK))
 ```
 
 ```{r}
-logitmodel = glm(C3H17M ~ OVERTIME + EFACT9 + EFACT6 + MANCONST + JOBCONST
+glmfit = glm(C3H17M ~ OVERTIME + EFACT9 + EFACT6 + MANCONST + JOBCONST
                  + TECHCONS + CSO9FT2, 
                  family = binomial(link= "logit"), data = telcom, na.action = na.omit)
 ```
