@@ -28,7 +28,8 @@ blbglm <- function(formula, data, m = 2, B = 10, parallel = FALSE) {
   ) 
   m = m
   B = B
-  res <- list(estimates = estimates, formula = formula, m=m, B=B)
+  call <- match.call()
+  res <- list(estimates = estimates, formula = formula, m=m, B=B, call = call)
   class(res) <- "blbglm"
   invisible(res)
 }
@@ -85,7 +86,15 @@ blbsigma <- function(fit) {
 #' @export
 #' @method print blbglm
 print.blbglm <- function(x, ...) {
-  cat("blblm model")
+  cat("\nblbglm model\n\nCall:\n ", paste(deparse(x$call)))
+  if(length(coef.blbglm(x))) {
+    cat("\n\nCoefficients\n")
+    print.default(coef.blbglm(x))
+  } else {cat("\nNo Coefficients\n\n")}
+  
+  cat("\nSigma:", sigma.blbglm(x))
+  
+  
 }
 
 
@@ -195,11 +204,29 @@ confint(telefit, c("EFACT9", "EFACT6"))
 ```
 
 ```{r}
+telefit
+```
+
+```{r}
+test <- glm(C3H17M ~ OVERTIME + EFACT9 + EFACT6 + MANCONST + JOBCONST
+                 + TECHCONS + CSO9FT2, data = telcom, family = "binomial")
+
+test$model
+
+```
+
+
+```{r}
 bankfit <-blbglm(as.factor(y) ~ (.), data = bank, m = 3, B = 10)
 
 sigma(bankfit)
 coef(bankfit)
 confint(bankfit)
 confint(bankfit , c("pdays", "age"))
+```
+
+```{r}
+x <- 100
+quantile(x, c(0.025, 0.975))
 ```
 
