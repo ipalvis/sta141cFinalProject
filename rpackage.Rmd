@@ -43,7 +43,7 @@ split_data <- function(data, m) {
 
 #' compute the estimates
 glm_each_subsample <- function(formula, data, n, B) {
-  each_sub <- replicate(B, glm_each_boot(formula, data, n), simplify = FALSE)
+  replicate(B, glm_each_boot(formula, data, n), simplify = FALSE)
 }
 
 
@@ -60,13 +60,13 @@ glm1 <- function(formula, data, freqs) {
   # drop the original closure of formula,
   # otherwise the formula will pick wrong variables from a parent scope.
   environment(formula) <- environment()
-  fit <- glm(formula, data, weights = freqs, family = binomial("logit"), control = list(maxit = 50))
+  fit <- glm(formula, data, weights = freqs, family = binomial("logit"))
   list(coef = blbcoef(fit), sigma = blbsigma(fit))
 }
 
 
 #' compute the coefficients from fit
-blbcoef <- function(fit, freqs) {
+blbcoef <- function(fit) {
   coef <- fit$coefficients
 }
 
@@ -162,24 +162,23 @@ predict.blbglm <- function(object, newdata, confidence = FALSE, level = 0.95, ..
 
 ```
 
-```{r, warning=FALSE}
-bank = read.csv("bank-additional.csv", sep=";")
-# Remove bad variables
-drop<-c("duration", "emp.var.rate", "loan", "default", "education")
-bank<-bank[,!names(bank)%in%drop]
+```{r}
+telefit = blbglm(C3H17M ~ OVERTIME + EFACT9 + EFACT6 + MANCONST + JOBCONST
+                 + TECHCONS + CSO9FT2, data = telcom, m = 3, B = 10)
 
+sigma(telefit)
+sigma(telefit, confidence = TRUE)
+coef(telefit)
+confint(telefit)
+confint(telefit, c("EFACT9", "EFACT6"))
 ```
 
 ```{r}
-bank_model <-blbglm(y ~ (.), data=bank)
+bankfit <-blbglm(as.factor(y) ~ (.), data = bank, m = 3, B = 10)
 
-```
-
-```{r}
-coef(bank_model)
-confint(bank_model)
-confint(bank_model, c("pdays", "age"))
-sigma(bank_model)
-
+sigma(bankfit)
+coef(bankfit)
+confint(bankfit)
+confint(bankfit , c("pdays", "age"))
 ```
 
