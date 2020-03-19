@@ -26,10 +26,11 @@ blbglm <- function(formula, data, m = 2, B = 10, parallel = FALSE) {
     data_list,
     ~ glm_each_subsample(formula = formula, data = ., n = nrow(data), B = B)
   ) 
-  res <- list(estimates = estimates, formula = formula)
+  m = m
+  B = B
+  res <- list(estimates = estimates, formula = formula, m=m, B=B)
   class(res) <- "blbglm"
   invisible(res)
-  estimates
 }
 
 
@@ -43,24 +44,14 @@ split_data <- function(data, m) {
 #' compute the estimates
 glm_each_subsample <- function(formula, data, n, B) {
   each_sub <- replicate(B, glm_each_boot(formula, data, n), simplify = FALSE)
-  #print(each_sub)
-  #sum_coef <- each_sub %>% reduce(`+`, .$coef)
-  #as.data.frame(each_sub)
-  
-  #sub_sum_coef <- each_sub[[1]]$coef + each_sub[[2]]$coef
-  #sub_sum_coef <- sum(each_sub)
-  #print(sub_sum_coef)
-  #sub_mean_coef <- sub_sum_coef/B
-  #sub_mean_se <- sum_sub$se/B
-  #list(coef = sub_mean_coef)
 }
 
 
 #' compute the regression estimates for a blb dataset
 glm_each_boot <- function(formula, data, n) {
   freqs <- rmultinom(1, n, rep(1, nrow(data)))
-  #glm1(formula, data, freqs)
-  boot = glm1(formula, data, freqs)
+  glm1(formula, data, freqs)
+
 }
 
 
@@ -70,19 +61,13 @@ glm1 <- function(formula, data, freqs) {
   # otherwise the formula will pick wrong variables from a parent scope.
   environment(formula) <- environment()
   fit <- glm(formula, data, weights = freqs, family = binomial("logit"), control = list(maxit = 50))
-  list(coef = blbcoef(fit), se = blbse(fit))
+  list(coef = blbcoef(fit), sigma = blbsigma(fit))
 }
 
 
 #' compute the coefficients from fit
 blbcoef <- function(fit, freqs) {
   coef <- fit$coefficients
-}
-
-#' compute SE from fit
-blbse <- function(fit) {
-  se <- summary(fit)$coefficients[, 2]
-
 }
 
 
@@ -99,7 +84,7 @@ blbsigma <- function(fit) {
 
 
 #' @export
-#' @method print blblm
+#' @method print blbglm
 print.blbglm <- function(x, ...) {
   cat("blblm model")
 
@@ -107,61 +92,47 @@ print.blbglm <- function(x, ...) {
 
 
 #' @export
-#' @method sigma blblm
+#' @method sigma blbglm
 sigma.blbglm <- function(object, confidence = FALSE, level = 0.95, ...) {
   est <- object$estimates
-  coef_names <- names(est[[1]][[1]]$coef)
-  #print(coef_names)
-  
-  object$estimates[[1]][[1]]$coef
-  
-  
-  #lmap(est[[1]], ~ imap(.y, names(.x), print(.x)), .y = .x)
-  
-  #coef_mean <- function(.i, .) {}
-  
-  #est[[1]] %>% map()
-    
-  
-  #est %>% map(.) %>% pmap(., ~) 
-  
-  #est[[1]] %>% map(., ~map(.x, print))
-  
-  #pmap(est[[1]], ) 
-  
-  #imap(est[[1]], ~imap(., .f=print(.y)))
-  #pmap(est[[1]], mean)
 
-  
-  #est[[1]][[1]]$coef %>% map_dbl(., mean)
-  
-  #est %>% map(map('[', c(""))
-  # YOUR CODE to compute sigma and its c.i.
-  #est["sigma"] %>%
-  # map(map(mean(.)))
+
 }
 
 #' @export
-#' @method coef blblm
-coef.blblm <- function(object, ...) {
+#' @method coef blbglm
+coef.blbglm <- function(object, ...) {
   est <- object$estimates
-  print(est['coef'])
+  coef_names <- names(est[[1]][[1]]$coef)
+  coef_sub <- est %>% 
+    map(function(x){map(x,function(a){a[[1]]})}) %>%
+    map(function(x){as.matrix(matrix(unlist(x, use.names = TRUE), nrow=length(unlist(x[[1]]))))}) 
+  
+  coef_sub_means <- map(coef_sub, rowMeans) 
+  Reduce("+", coef_sub_means)/length(coef_sub_means)
   
 }
 
 
 #' @export
-#' @method confint blblm
-confint.blblm <- function(object, parm = NULL, level = 0.95, ...) {
+#' @method confint blbglm
+confint.blbglm <- function(object, parm = NULL, level = 0.95, ...) {
   if (is.null(parm)) {
-    parm <- attr(terms(fit$formula), "term.labels")
+    #parm <- attr(terms(fit$formula), "term.labels")
   }
-  # YOUR CODE to compute the confidence intervals
+  est <- object$estimates
+  ci_list <- est %>% 
+    map(function(x){map(x,function(a){a[[1]]})}) %>%
+    map(function(x){as.matrix(matrix(unlist(x, use.names = TRUE), nrow=length(unlist(x[[1]]))))}) %>%
+    map(function(x){apply(x, 1, quantile, c(0.25, 0.75))})
+  
+  Reduce("+", ci_list) / length(ci_list)
+  
 }
 
 #' @export
-#' @method predict blblm
-predict.blblm <- function(object, newdata, confidence = FALSE, level = 0.95, ...) {
+#' @method predict blbglm
+predict.blbglm <- function(object, newdata, confidence = FALSE, level = 0.95, ...) {
   est <- object$estimates
   X <- model.matrix(reformulate(attr(terms(object$formula), "term.labels")), newdata)
   if (confidence) {
@@ -180,41 +151,18 @@ bank = read.csv("bank-additional.csv", sep=";")
 # Remove bad variables
 drop<-c("duration", "emp.var.rate", "loan", "default", "education")
 bank<-bank[,!names(bank)%in%drop]
-#bank$y = as.factor(bank$y)
-# numeric y
-#bank$ynum = ifelse(bank$y == "yes", 1, 0)
+
 ```
 
 ```{r}
 data <-blbglm(y ~ (.), data=bank)
-#bank_fit <- blbglm(y ~ (.), data=bank)
-#est <- bank_fit$estimates
-#bank_fit
-```
-
-```{r}
-list <- est[[1]][[1]]
-list$coef/2
 
 ```
 
 ```{r}
-coeff_list = data %>% map(function(x){map(x,function(a){a[[1]]})})
-res = coeff_list %>% map(function(x){as.matrix(matrix(unlist(x), nrow=length(unlist(x[[1]]))))})
-ci_list = res %>% map(function(x){apply(x, 1, quantile, c(0.25, 0.75))})
-Reduce("+", ci_list) / length(ci_list)
-```
-
-```{r}
-est %>% map(~map(.))
-
-coef_mean <- function(x) {
-  # x is a bootstrap
-  
-  sum(x$coef)
-  
-}
-
+coef.blbglm(data)
+confint.blbglm(data)
 
 
 ```
+
