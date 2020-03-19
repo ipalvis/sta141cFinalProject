@@ -18,11 +18,7 @@ bank<-bank[,!names(bank)%in%drop]
 ```
 
 ```{r}
-# factor y
-bank$yfac = as.factor(bank$y)
-
-# numeric y
-bank$ynum = ifelse(bank$y == "yes", 1, 0)
+bank = na.omit(bank)
 ```
 
 ```{r}
