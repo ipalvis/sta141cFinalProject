@@ -25,7 +25,8 @@ blbglm <- function(formula, data, m = 2, B = 10, parallel = FALSE) {
   estimates <- map(
     data_list,
     ~ glm_each_subsample(formula = formula, data = ., n = nrow(data), B = B)
-  ) 
+  )
+
   res <- list(estimates = estimates, formula = formula)
   class(res) <- "blbglm"
   invisible(res)
@@ -42,15 +43,31 @@ split_data <- function(data, m) {
 #' compute the estimates
 glm_each_subsample <- function(formula, data, n, B) {
   each_sub <- replicate(B, glm_each_boot(formula, data, n), simplify = FALSE)
-  #print(each_sub)
+  #len <- length(each_sub)
+  
+  #print(len)
+  #print(each_sub[[1:10]])
+  
+  #sapply(each_sub, function(x) x$coef)
+  
+  #print(each_sub[[1:length(each_sub)]])
+  #Reduce(each_sub[[1:length(each_sub)]], cbind)
+  
+  
+  
+  #print(unlist(each_sub, use.names = TRUE))
   #sum_coef <- each_sub %>% reduce(`+`, .$coef)
-  as.data.frame(each_sub)
-  sub_sum_coef <- each_sub[[1]]$coef + each_sub[[2]]$coef
-  sub_sum_coef <- sum(each_sub)
-  print(sub_sum_coef)
-  sub_mean_coef <- sub_sum_coef/B
+  #as.data.frame(each_sub)
+  
+  #each_sub %>% Reduce(`+`, .$coef)
+  
+  #sub_sum_coef <- Reduce(`+`, each_sub$coef)
+    #each_sub[[1]]$coef + each_sub[[2]]$coef
+  #sub_sum_coef <- sum(each_sub)
+  #print(sub_sum_coef)
+  #sub_mean_coef <- sub_sum_coef/B
   #sub_mean_se <- sum_sub$se/B
-  list(coef = sub_mean_coef)
+  #list(coef = sub_mean_coef)
 }
 
 
@@ -73,7 +90,7 @@ glm1 <- function(formula, data, freqs) {
 
 
 #' compute the coefficients from fit
-blbcoef <- function(fit, freqs) {
+blbcoef <- function(fit) {
   coef <- fit$coefficients
 }
 
@@ -185,8 +202,13 @@ bank<-bank[,!names(bank)%in%drop]
 
 ```{r}
 bank_fit <- blbglm(y ~ (.), data=bank)
-#est <- bank_fit$estimates
-bank_fit
+bank_fit$estimates
+#bank_fit
+```
+
+```{r}
+
+
 ```
 
 ```{r}
@@ -194,7 +216,10 @@ list <- est[[1]][[1]]
 list$coef/2
 
 ```
-
+```{r}
+length(bank_fit$estimates)
+length(bank_fit$estimates[[1]])
+```
 
 ```{r}
 est %>% map(~map(.))
