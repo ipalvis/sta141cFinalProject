@@ -92,21 +92,33 @@ print.blbglm <- function(x, ...) {
 #' @export
 #' @method sigma blbglm
 sigma.blbglm <- function(object, confidence = FALSE, level = 0.95, ...) {
+  if (is.null(level)) {
+    level = 0.95
+  } else {
+    level = level
+  }
+  
   est <- object$estimates
-  sigma_list <- est %>% map(function(x){map(x,function(a){a[[2]]})})
-  sigma_mat <- sigma_list %>% map(function(x){as.matrix(matrix(unlist(x), nrow=length(unlist(x[[1]]))))})
+  sigma_list <- est %>% 
+    map(function(x){map(x,function(a){a[[2]]})})
+  
+  sigma_mat <- sigma_list %>% 
+    map(function(x){as.matrix(matrix(unlist(x), nrow=length(unlist(x[[1]]))))})
   
   mean_list = sigma_mat %>% map(mean)
   sigma_mean = Reduce("+", mean_list) / length(mean_list)
 
-  ci_list = sigma_mat %>% map(function(x){apply(x, 1, quantile, c(0.025, 0.975))})
+  ci_list = sigma_mat %>% 
+    map(function(x){apply(x, 1, quantile, c((1-level)/2, (1+level)/2))})
   sigma_ci = Reduce("+", ci_list) / length(ci_list)
   
+  colnames(sigma_ci) <- "sigma"
+  sigma_ci <- t(sigma_ci)
+  
   if(confidence == FALSE) {
-    print(sigma_mean)
-  }
-  else {
-    print(sigma_ci)
+    sigma_mean
+  } else {
+    sigma_ci
   }
 }
 
@@ -116,6 +128,7 @@ sigma.blbglm <- function(object, confidence = FALSE, level = 0.95, ...) {
 coef.blbglm <- function(object, ...) {
   est <- object$estimates
   coef_names <- names(est[[1]][[1]]$coef)
+  
   coef_sub <- est %>% 
     map(function(x){map(x,function(a){a[[1]]})}) %>%
     map(function(x){data.frame(Reduce(cbind, x))})
@@ -130,12 +143,18 @@ coef.blbglm <- function(object, ...) {
 #' @export
 #' @method confint blbglm
 confint.blbglm <- function(object, parm = NULL, level = 0.95, ...) {
+  if (is.null(level)) {
+    level = 0.95
+  } else {
+    level = level
+  }
+  
   if (is.null(parm)) {
     est <- object$estimates
       ci_list <- est %>% 
         map(function(x){map(x,function(a){a[[1]]})}) %>%
         map(function(x){data.frame(Reduce(cbind, x))}) %>%
-        map(function(x){apply(x, 1, quantile, c(0.025, 0.975))})
+        map(function(x){apply(x, 1, quantile, c((1-level)/2, (1+level)/2))})
       
        
   } else {
@@ -143,9 +162,11 @@ confint.blbglm <- function(object, parm = NULL, level = 0.95, ...) {
       ci_list <- est %>% 
         map(function(x){map(x,function(a){a[[1]][parm]})}) %>%
         map(function(x){data.frame(Reduce(cbind, x))}) %>%
-        map(function(x){apply(x, 1, quantile, c(0.025, 0.975))})
+        map(function(x){apply(x, 1, quantile, c((1-level)/2, (1+level)/2))})
   }
-   t(Reduce("+", ci_list) / length(ci_list))
+   
+  confint <- t(Reduce("+", ci_list) / length(ci_list))
+  confint
 }
 
 #' @export
@@ -169,7 +190,7 @@ telefit = blbglm(C3H17M ~ OVERTIME + EFACT9 + EFACT6 + MANCONST + JOBCONST
 sigma(telefit)
 sigma(telefit, confidence = TRUE)
 coef(telefit)
-confint(telefit)
+conf <- confint(telefit)
 confint(telefit, c("EFACT9", "EFACT6"))
 ```
 
