@@ -93,7 +93,8 @@ print.blbglm <- function(x, ...) {
   } else {cat("\nNo Coefficients\n\n")}
   
   cat("\nSigma:", sigma.blbglm(x))
-  
+  cat("\n\nSubsamples:", paste(x$m))
+  cat("\nBootstrap Size:", paste(x$B))
   
 }
 
