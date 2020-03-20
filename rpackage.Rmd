@@ -8,6 +8,8 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(furrr)
+library(future)
 ```
 
 ```{r}
@@ -125,9 +127,9 @@ sigma.blbglm <- function(object, confidence = FALSE, level = 0.95, ...) {
       future_map(function(x){map(x,function(a){a[[2]]})})
     sigma_mat <- sigma_list %>% 
       future_map(function(x){as.matrix(matrix(unlist(x), nrow=length(unlist(x[[1]]))))})
-    mean_list = sigma_mat %>% future_map(mean)
-    sigma_mean = Reduce("+", mean_list) / length(mean_list)
-    ci_list = sigma_mat %>% 
+    sigma_mean_list = sigma_mat %>% future_map(mean)
+    sigma_mean = Reduce("+", sigma_mean_list) / length(sigma_mean_list)
+    sigma_ci_list = sigma_mat %>% 
       future_map(function(x){apply(x, 1, quantile, c((1-level)/2, (1+level)/2))})
   
   } else {
@@ -135,13 +137,13 @@ sigma.blbglm <- function(object, confidence = FALSE, level = 0.95, ...) {
       map(function(x){map(x,function(a){a[[2]]})})
     sigma_mat <- sigma_list %>% 
       map(function(x){as.matrix(matrix(unlist(x), nrow=length(unlist(x[[1]]))))})
-    mean_list = sigma_mat %>% map(mean)
-    sigma_mean = Reduce("+", mean_list) / length(mean_list)
-    ci_list = sigma_mat %>% 
+    sigma_mean_list = sigma_mat %>% map(mean)
+    sigma_mean = Reduce("+", sigma_mean_list) / length(sigma_mean_list)
+    sigma_ci_list = sigma_mat %>% 
       map(function(x){apply(x, 1, quantile, c((1-level)/2, (1+level)/2))})
   }
 
-  sigma_ci = Reduce("+", ci_list) / length(ci_list)
+  sigma_ci = Reduce("+", sigma_ci_list) / length(sigma_ci_list)
   
   colnames(sigma_ci) <- "sigma"
   sigma_ci <- t(sigma_ci)
@@ -171,12 +173,8 @@ coef.blbglm <- function(object, ...) {
     map(function(x){map(x,function(a){a[[1]]})}) %>%
     map(function(x){data.frame(Reduce(cbind, x))})
   }
-  
-  
-  print(coef_sub)
-  
+
   coef_sub_means <- map(coef_sub, rowMeans) 
-  print(coef_sub_means)
   coef_mean <- as.matrix(Reduce("+", coef_sub_means)/length(coef_sub_means))
   colnames(coef_mean) <- "Estimates"
   coef_mean
