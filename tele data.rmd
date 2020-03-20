@@ -8,13 +8,13 @@ library("readxl") # read_excel
 ```
 
 ```{r}
-telcom = read_excel('choice12svar.xlsx', sheet = 1, col_names = TRUE, col_types = NULL, skip = 0)
+telcom = read_excel('tele_data_original.xlsx', sheet = 1, col_names = TRUE, col_types = NULL, skip = 0)
 ```
 
 ```{r}
 # identify and treat NA
 
-unique(telcom$C3H17M)
+# unique(telcom$C3H17M)
 
 telcom$OVERTIME = ifelse(str_detect(telcom$OVERTIME, "-1"), sub('-1', NA, telcom$OVERTIME), telcom$OVERTIME)
 telcom$OVERTIME = as.numeric(as.character(telcom$OVERTIME))
@@ -41,12 +41,8 @@ telcom = na.omit(telcom)
 ```
 
 ```{r}
-
-write.csv(telcom, "telecom_data.csv")
-
-
+write.csv(telcom, "tele_data_clean.csv")
 ```
-
 
 ```{r}
 glmfit = glm(C3H17M ~ OVERTIME + EFACT9 + EFACT6 + MANCONST + JOBCONST

@@ -8,7 +8,7 @@ library(tidyverse)
 ```
 
 ```{r}
-bank = read.csv("bank-additional.csv", sep=";")
+bank = read.csv("bank_data_original.csv", sep=";")
 ```
 
 ```{r}
@@ -22,15 +22,22 @@ bank = na.omit(bank)
 ```
 
 ```{r}
-# numeric y
-# comment
-bank$ynumeric = ifelse(bank$y == "yes", 1, 0)
+# numeric variables
+bank$y = ifelse(bank$y == "yes", 1, 0)
+bank$job = as.numeric(bank$job)
+bank$marital = as.numeric(bank$marital)
+bank$housing = as.numeric(bank$housing)
+bank$contact = as.numeric(bank$contact)
+bank$month = as.numeric(bank$month)
+bank$day_of_week = as.numeric(bank$day_of_week)
+bank$poutcome = as.numeric(bank$poutcome)
+```
+
+```{r}
+write.csv(bank, "bank_data_clean.csv")
 ```
 
 ```{r}
 # Model
-logitmodel = glm(ynumeric ~ (.), data=bank, family = binomial("logit"))
+logitmodel = glm(y ~ (.), data=bank, family = binomial("logit"))
 ```
-
-```{r}
-
