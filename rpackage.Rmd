@@ -313,25 +313,63 @@ quantile(x, c(0.025, 0.975))
 newdata = data.frame(OVERTIME = c(4, 5), EFACT9 = c(0.5, -0.5), EFACT6 = c(1, 0.6), MANCONST = c(1, 0), JOBCONST = c(1, 1), TECHCONS = c(0, 1), CSO9FT2 = c(1, 0.7))
 X = model.matrix(reformulate(attr(terms(telefit$formula), "term.labels")), newdata)
 new <- t(X) 
-func <- function(x) {x*new}  
+func <- function(x) {x*new} 
+
 coef_sub <- telefit$estimates %>%      
   map(function(x){map(x,function(a){a[[1]]})}) %>%     
   map(function(x){data.frame(Reduce(cbind, x))})
+
 pred_sub_list <- coef_sub %>%     
-  map(function(x){lapply(x, FUN = function(a) new * a)})
-  #rowMeans(as.data.frame(lapply(temp, colSums)))
-  #map(colSums)  
+  map(function(x){lapply(x, FUN = function(a) new * a)}) %>%
+  map(function(x){lapply(x, colSums)}) %>%
+  map(function(x){data.frame(Reduce(cbind, x))})
+print(pred_sub_list)
 
-pred_sub_mean = pred_sub_list %>% map(function(x){rowMeans(as.data.frame(lapply(x, colSums)))})
-#pred_sub_mean <- pred_sub %>% map(mean) 
+pred_sub = pred_sub_list %>%  
+  map(function(x){rowMeans(x)})
+print(pred_sub)
 
-pred <- Reduce("+", pred_sub_mean)/length(pred_sub_mean)
+pred <- Reduce("+", pred_sub)/length(pred_sub)
 pred
-#temp = pred_sub %>% map(combine)
-#pred_sub
+
 ```
 ```{r}
-pred_sub_ci <- pred_sub %>% map(function(x){apply(x, 2, quantile,c(0.025, 0.975))}) 
+
+pred_sub_ci <- pred_sub_list %>% 
+  map(function(x){apply(x, 1, quantile, c(0.025, 0.975))}) #%>%
+  #map(function(x){apply()})
+    
+#map(function(x){}
+
+print(pred_sub_ci)
+
+
+pred_ci <- Reduce("+", pred_sub_ci)/length(pred_sub_ci)
+pred_ci
+
+```
+```{r}
+pred_sub_ci <- data.frame(pred_sub_list) %>% map(function(x){apply(x, 2, quantile,c(0.025, 0.975))}) 
+
+pred_as_df <- data.frame(pred_sub_list)
+print(pred_as_df)
+apply(pred_as_df, 2, quantile,c(0.025, 0.975))
+
+print(pred_sub_list)
+pred_sub_list %>%
+  map(function(x){data.frame(Reduce(cbind, x))})
+
+map(pred_sub_list, Reduce(cbind, pred_sub_list))
+
+pred_sub_ci <- pred_as_df %>% map(function(x){apply(x, 2, quantile,c(0.025, 0.975))})
+
+
+quantile(pred_as_df, 2, c(0.25, 0.75))
+
+print(pred_sub_list)
+pred_sub_ci <- data.frame(pred_sub_list) %>% map(function(x){quantile(x, c(0.025, 0.975))}) 
+print(pred_sub_ci)
+
 pred_ci <- Reduce("+", pred_sub_ci) / length(pred_sub_ci)
 pred_ci
 ```
