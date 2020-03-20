@@ -33,4 +33,5 @@ logitmodel = glm(ynumeric ~ (.), data=bank, family = binomial("logit"))
 ```
 
 ```{r}
-
+write.csv(bank, "bank_data.csv")
+```
