@@ -13,6 +13,8 @@ library(tidyverse)
 ```{r}
 #' @import tidyverse
 #' @import purrr
+#' @import future
+#' @import furrr
 #' @import stats
 #' @importFrom magrittr %>%
 #' @details
@@ -22,14 +24,22 @@ library(tidyverse)
 #' @export
 blbglm <- function(formula, data, m = 2, B = 10, parallel = FALSE) {
   data_list <- split_data(data, m)
-  estimates <- map(
+  if (isTRUE(parallel)){
+    plan(multiprocess, workers = 4)
+    estimates <- future_map(
     data_list,
-    ~ glm_each_subsample(formula = formula, data = ., n = nrow(data), B = B)
-  ) 
+    ~ glm_each_subsample(formula = formula, data = ., n = nrow(data), B = B))
+  } else {
+    estimates <- map(
+    data_list,
+    ~ glm_each_subsample(formula = formula, data = ., n = nrow(data), B = B))
+  }
+   
   m = m
   B = B
+  parallel = parallel
   call <- match.call()
-  res <- list(estimates = estimates, formula = formula, m=m, B=B, call = call)
+  res <- list(estimates = estimates, formula = formula, m=m, B=B, call = call, parallel = parallel)
   class(res) <- "blbglm"
   invisible(res)
 }
@@ -107,19 +117,30 @@ sigma.blbglm <- function(object, confidence = FALSE, level = 0.95, ...) {
   } else {
     level = level
   }
-  
+  par <- object$parallel
   est <- object$estimates
-  sigma_list <- est %>% 
-    map(function(x){map(x,function(a){a[[2]]})})
   
-  sigma_mat <- sigma_list %>% 
-    map(function(x){as.matrix(matrix(unlist(x), nrow=length(unlist(x[[1]]))))})
+  if(isTRUE(par)){
+    sigma_list <- est %>% 
+      future_map(function(x){map(x,function(a){a[[2]]})})
+    sigma_mat <- sigma_list %>% 
+      future_map(function(x){as.matrix(matrix(unlist(x), nrow=length(unlist(x[[1]]))))})
+    mean_list = sigma_mat %>% future_map(mean)
+    sigma_mean = Reduce("+", mean_list) / length(mean_list)
+    ci_list = sigma_mat %>% 
+      future_map(function(x){apply(x, 1, quantile, c((1-level)/2, (1+level)/2))})
   
-  mean_list = sigma_mat %>% map(mean)
-  sigma_mean = Reduce("+", mean_list) / length(mean_list)
+  } else {
+    sigma_list <- est %>% 
+      map(function(x){map(x,function(a){a[[2]]})})
+    sigma_mat <- sigma_list %>% 
+      map(function(x){as.matrix(matrix(unlist(x), nrow=length(unlist(x[[1]]))))})
+    mean_list = sigma_mat %>% map(mean)
+    sigma_mean = Reduce("+", mean_list) / length(mean_list)
+    ci_list = sigma_mat %>% 
+      map(function(x){apply(x, 1, quantile, c((1-level)/2, (1+level)/2))})
+  }
 
-  ci_list = sigma_mat %>% 
-    map(function(x){apply(x, 1, quantile, c((1-level)/2, (1+level)/2))})
   sigma_ci = Reduce("+", ci_list) / length(ci_list)
   
   colnames(sigma_ci) <- "sigma"
@@ -137,11 +158,20 @@ sigma.blbglm <- function(object, confidence = FALSE, level = 0.95, ...) {
 #' @method coef blbglm
 coef.blbglm <- function(object, ...) {
   est <- object$estimates
+  par <- object$parallel
   coef_names <- names(est[[1]][[1]]$coef)
   
-  coef_sub <- est %>% 
+  if(isTRUE(par)){
+    coef_sub <- est %>% 
+    future_map(function(x){future_map(x,function(a){a[[1]]})}) %>%
+    future_map(function(x){data.frame(Reduce(cbind, x))})
+  }
+  else{
+    coef_sub <- est %>% 
     map(function(x){map(x,function(a){a[[1]]})}) %>%
     map(function(x){data.frame(Reduce(cbind, x))})
+  }
+  
   
   coef_sub_means <- map(coef_sub, rowMeans) 
   coef_mean <- as.matrix(Reduce("+", coef_sub_means)/length(coef_sub_means))
@@ -161,20 +191,33 @@ confint.blbglm <- function(object, parm = NULL, level = 0.95, ...) {
   
   if (is.null(parm)) {
     est <- object$estimates
+    if (isTRUE(object$parallel)){
+      ci_list <- est %>% 
+        future_map(function(x){future_map(x,function(a){a[[1]]})}) %>%
+        future_map(function(x){data.frame(Reduce(cbind, x))}) %>%
+        future_map(function(x){apply(x, 1, quantile, c((1-level)/2, (1+level)/2))})
+    } else {
       ci_list <- est %>% 
         map(function(x){map(x,function(a){a[[1]]})}) %>%
         map(function(x){data.frame(Reduce(cbind, x))}) %>%
         map(function(x){apply(x, 1, quantile, c((1-level)/2, (1+level)/2))})
-      
-       
-  } else {
+    } 
+    
+  } else { # else for the parameters
+    
     est <- object$estimates
+    if (isTRUE(object$parallel)){
+      ci_list <- est %>% 
+        future_map(function(x){future_map(x,function(a){a[[1]][parm]})}) %>%
+        future_map(function(x){data.frame(Reduce(cbind, x))}) %>%
+        future_map(function(x){apply(x, 1, quantile, c((1-level)/2, (1+level)/2))})
+    } else {
       ci_list <- est %>% 
         map(function(x){map(x,function(a){a[[1]][parm]})}) %>%
         map(function(x){data.frame(Reduce(cbind, x))}) %>%
         map(function(x){apply(x, 1, quantile, c((1-level)/2, (1+level)/2))})
+    }
   }
-   
   confint <- t(Reduce("+", ci_list) / length(ci_list))
   confint
 }
@@ -195,7 +238,7 @@ predict.blbglm <- function(object, newdata, confidence = FALSE, level = 0.95, ..
 
 ```{r}
 telefit = blbglm(C3H17M ~ OVERTIME + EFACT9 + EFACT6 + MANCONST + JOBCONST
-                 + TECHCONS + CSO9FT2, data = telcom, m = 3, B = 10)
+                 + TECHCONS + CSO9FT2, data = telcom, m = 3, B = 10, parallel = TRUE)
 
 sigma(telefit)
 sigma(telefit, confidence = TRUE)
