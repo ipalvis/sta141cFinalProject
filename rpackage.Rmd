@@ -341,3 +341,29 @@ x <- 100
 quantile(x, c(0.025, 0.975))
 ```
 
+```{r}
+newdata = data.frame(OVERTIME = c(4, 5), EFACT9 = c(0.5, -0.5), EFACT6 = c(1, 0.6), MANCONST = c(1, 0), JOBCONST = c(1, 1), TECHCONS = c(0, 1), CSO9FT2 = c(1, 0.7))
+X = model.matrix(reformulate(attr(terms(telefit$formula), "term.labels")), newdata)
+new <- t(X) 
+func <- function(x) {x*new}  
+coef_sub <- telefit$estimates %>%      
+  map(function(x){map(x,function(a){a[[1]]})}) %>%     
+  map(function(x){data.frame(Reduce(cbind, x))})
+pred_sub_list <- coef_sub %>%     
+  map(function(x){lapply(x, FUN = function(a) new * a)})
+  #rowMeans(as.data.frame(lapply(temp, colSums)))
+  #map(colSums)  
+
+pred_sub_mean = pred_sub_list %>% map(function(x){rowMeans(as.data.frame(lapply(x, colSums)))})
+#pred_sub_mean <- pred_sub %>% map(mean) 
+
+pred <- Reduce("+", pred_sub_mean)/length(pred_sub_mean)
+pred
+#temp = pred_sub %>% map(combine)
+#pred_sub
+```
+```{r}
+pred_sub_ci <- pred_sub %>% map(function(x){apply(x, 2, quantile,c(0.025, 0.975))}) 
+pred_ci <- Reduce("+", pred_sub_ci) / length(pred_sub_ci)
+pred_ci
+```
