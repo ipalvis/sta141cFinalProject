@@ -22,6 +22,15 @@ bank = na.omit(bank)
 ```
 
 ```{r}
-# Model
-logitmodel = glm(as.factor(y) ~ (.), data=bank, family = binomial("logit"))
+# numeric y
+# comment
+bank$ynumeric = ifelse(bank$y == "yes", 1, 0)
 ```
+
+```{r}
+# Model
+logitmodel = glm(ynumeric ~ (.), data=bank, family = binomial("logit"))
+```
+
+```{r}
+
