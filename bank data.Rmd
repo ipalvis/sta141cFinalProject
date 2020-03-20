@@ -31,3 +31,6 @@ bank$ynumeric = ifelse(bank$y == "yes", 1, 0)
 # Model
 logitmodel = glm(ynumeric ~ (.), data=bank, family = binomial("logit"))
 ```
+
+```{r}
+

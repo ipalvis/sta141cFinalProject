@@ -41,6 +41,14 @@ telcom = na.omit(telcom)
 ```
 
 ```{r}
+
+write.csv(telcom, "telecom_data.csv")
+
+
+```
+
+
+```{r}
 glmfit = glm(C3H17M ~ OVERTIME + EFACT9 + EFACT6 + MANCONST + JOBCONST
                  + TECHCONS + CSO9FT2, 
                  family = binomial(link= "logit"), data = telcom)
