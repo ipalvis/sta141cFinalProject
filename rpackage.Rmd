@@ -143,7 +143,10 @@ coef.blbglm <- function(object, ...) {
     map(function(x){map(x,function(a){a[[1]]})}) %>%
     map(function(x){data.frame(Reduce(cbind, x))})
   
+  print(coef_sub)
+  
   coef_sub_means <- map(coef_sub, rowMeans) 
+  print(coef_sub_means)
   coef_mean <- as.matrix(Reduce("+", coef_sub_means)/length(coef_sub_means))
   colnames(coef_mean) <- "Estimates"
   coef_mean
@@ -184,10 +187,71 @@ confint.blbglm <- function(object, parm = NULL, level = 0.95, ...) {
 predict.blbglm <- function(object, newdata, confidence = FALSE, level = 0.95, ...) {
   est <- object$estimates
   X <- model.matrix(reformulate(attr(terms(object$formula), "term.labels")), newdata)
+  
+  new <- t(X) #convert row to column
+  func <- function(x) {
+      x*new
+    }
+  
+  coef_sub <- est %>% 
+      map(function(x){map(x,function(a){a[[1]]})}) %>%
+      map(function(x){data.frame(Reduce(cbind, x))})
+  
+  print(coef_sub)
+  
+  pred_sub <- coef_sub %>%
+      map(function(x){apply(x, 2, func)}) %>%
+      map(colSums) 
+  
+
+  pred_sub_mean <- pred_sub %>% map(mean)
+  pred <- Reduce("+", pred_sub_mean)/length(pred_sub_mean)
+    #map(function(x){as.matrix(matrix(unlist(x), nrow=length(unlist(x[[1]]))))})
+  
+  #rbindlist(preds[[1]])
+    #map(function(x){as.matrix(Reduce(cbind, x))})
+  
+  print(pred)
+  #pred_mean <- Reduce("+", pred_sub)/length(pred_sub)
+  #print(pred_mean)
+  
+  #preds <- as.vector(unlist(pred_sub, recursive = FALSE))
+  #print(preds)
+  #test <- rbind(preds[[1]], preds[[2]], preds[[3]])
+    #map(function(x){data.frame(Reduce(cbind, x))})
+  
+  #print(test)
+  
+  #pred_mean <- (Reduce("+", preds)/length(preds))
+
   if (confidence) {
-    # YOUR CODE to compute the predictions and their confidence intervals
+    if (level) {
+      level = level
+    } else {
+      level = 0.95
+    }
+    
+    #pred_ci <- quantile(preds, c((1-level)/2, (1+level)/2))
+    #print(pred_mean) 
+    #print(pred_sub)
+    pred_sub_ci <- pred_sub %>% map(function(x){apply(x, 1, quantile, c(0.025, 0.975))})
+    pred_ci <- Reduce("+", pred_sub_ci) / length(pred_sub_ci)
+    
+    #print(pred_ci)
+    
+    #pred_ci <- pred_sub %>% 
+    #  map(function(x){apply(x, 1, quantile, c((1-level)/2), (1+level)/2)})
+    
+    #pred_confint <-  Reduce("+", pred_ci)/length(pred_ci)
+    #print(pred_confint)
+    
+    pred <- c(pred_mean, pred_ci)
+    pred
+    
+    #print(pred)
+
   } else {
-    # YOUR CODE to compute the predictions
+    pred_mean
   }
 }
 
@@ -205,7 +269,10 @@ confint(telefit, c("EFACT9", "EFACT6"))
 ```
 
 ```{r}
-telefit
+x <- data.frame(OVERTIME = 5, EFACT9 = -0.5, EFACT6 = 1, MANCONST = 0, JOBCONST = 1, TECHCONS = 0, CSO9FT2 = 1)
+predict.blbglm(telefit, x, confidence = TRUE)
+#coef.blbglm(telefit)
+
 ```
 
 ```{r}
