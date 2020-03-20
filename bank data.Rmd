@@ -1,0 +1,33 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+bank = read.csv("bank-additional.csv", sep=";")
+```
+
+```{r}
+# Remove bad variables
+drop<-c("duration", "emp.var.rate", "loan", "default", "education")
+bank<-bank[,!names(bank)%in%drop]
+```
+
+```{r}
+bank = na.omit(bank)
+```
+
+```{r}
+# numeric y
+# comment
+bank$ynumeric = ifelse(bank$y == "yes", 1, 0)
+```
+
+```{r}
+# Model
+logitmodel = glm(ynumeric ~ (.), data=bank, family = binomial("logit"))
+```
